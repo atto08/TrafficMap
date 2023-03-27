@@ -1,50 +1,71 @@
 package com.example.transportation.service;
 
 import com.example.transportation.dto.response.ResCode;
+import com.example.transportation.entity.BusStation;
+import com.example.transportation.repository.BusRouteRepository;
+import com.example.transportation.repository.BusStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class TrafficService {
 
-    @Value("${seoulKey}")
-    String key;
+    private final BusRouteRepository busRouteRepository;
+    private final BusStationRepository busStationRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final String[] emptyArray = {};
+
+    @Value("${subwayKey}")
+    String subwayKey;
+
+    @Value("${busKey}")
+    String busKey;
+
+    @Value("${googleApiKey}")
+    String apiKey;
 
     @Transactional
     public ResponseEntity<?> getSubwayArrivalInfo(String keyword) {
 
-        List<Map<String, Object>> realtimeArrivalList = new ArrayList<>();
+        Map<String, Object> subwayArrivalList = new HashMap<>();
+
+        if (keyword.isEmpty())
+            checkKeywordEmpty(subwayArrivalList, "subwayList");
 
         try {
             List<Map<String, Object>> arrivalInfoList = new ArrayList<>();
 
-            String url = "http://swopenAPI.seoul.go.kr/api/subway/" + key + "/json/realtimeStationArrival/0/5/" + keyword;
+            String url = "http://swopenAPI.seoul.go.kr/api/subway/" + subwayKey + "/json/realtimeStationArrival/0/5/" + keyword;
 
             RestTemplate restTemplate = new RestTemplate();
             String jsonResult = restTemplate.getForObject(url, String.class);
 
-            ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(jsonResult);
-
             JsonNode arrivalList = rootNode.path("realtimeArrivalList");
+
+            String stationName = arrivalList.get(0).path("statnNm").asText();
+
             if (arrivalList.isArray()) {
                 for (JsonNode arrival : arrivalList) {
                     int id = arrival.path("rowNum").asInt();
                     String arrivalArea = arrival.path("trainLineNm").asText();
-                    String stationName = arrival.path("statnNm").asText();
                     String arrivalMsg = arrival.path("arvlMsg2").asText();
                     String currentLocation = arrival.path("arvlMsg3").asText();
 
@@ -52,46 +73,253 @@ public class TrafficService {
 
                     arrivalInfo.put("id", id);
                     arrivalInfo.put("arrivalArea", arrivalArea);
-                    arrivalInfo.put("stationName", stationName);
                     arrivalInfo.put("arrivalMsg", arrivalMsg);
                     arrivalInfo.put("currentLocation", currentLocation);
 
                     arrivalInfoList.add(arrivalInfo);
                 }
-            } realtimeArrivalList = arrivalInfoList;
+            }
+            subwayArrivalList.put("subwayList", arrivalInfoList);
+            subwayArrivalList.put("stationName", stationName);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(realtimeArrivalList);
-
-        /*
-         *list_total_count       총 데이터 건수(정상조회 시 출력됨
-         * RESULT.CODE           요청결과 코드
-         * RESULT.MESSAGE        요쳥결과 메세지
-         * subwayId              지하철호선 Id
-         * updnLine              상하행선구분
-         * trainLineNm           도착지방면
-         * subwayHeading         내리는문 방향
-         * statnFid              이전 지하철역 Id
-         * statnTid              다음 지하철역 Id
-         * statnId               지하철역 Id
-         * statnNm               지하철역 명
-         * trnsitCo              환승 노선 수
-         * ordkey                도착예정 열차순번
-         * subwayList            연계호선 Id
-         * statnList             연계지하철역 Id
-         * btrainSttus           열차종류(급행, ITX)
-         * barvIDt               열차도착예정시간(단위: 초)
-         * btrainNo              열차번호(현재 운행중인 호선별 열차번호)
-         * bstatnId              종착지하철역 Id
-         * bstatnNm              종착지하철역 명
-         * recptnDt              열차도착정보를 생성한 시각
-         * arvlMsg2              첫번째 도착메세지(전역 진입, 전역 도착 등)
-         * arvlMsg3              두번째 도착메세지(종합운동장 도착, 12분후(광명사거리) 등)
-         * arvlCd                도착 코드 (0:진입, 1:도착, 2:출발, 3:전역출발, 4:전역진입, 5:전역도착, 99:운행중 ) */
-
+        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(subwayArrivalList);
     }
+
+
+    @Transactional
+    public ResponseEntity<?> getBusArrivalInfo(String stationNum) {
+
+        Map<String, Object> busArrivalList = new HashMap<>();
+
+        try {
+            List<Map<String, Object>> arrivalInfoList = new ArrayList<>();
+
+            URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey=" + busKey + "&arsId=" + stationNum + "&resultType=json");
+
+            JsonNode rootNode = objectMapper.readTree(url);
+            JsonNode arrivalList = rootNode.path("msgBody").path("itemList");
+
+            if (arrivalList.isNull()) {
+                busArrivalList.put("stationName", null);
+                busArrivalList.put("busList", emptyArray);
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(busArrivalList);
+            }
+
+            String stationName = arrivalList.get(0).path("stNm").asText();
+
+            if (arrivalList.isArray()) {
+                for (JsonNode arrival : arrivalList) {
+
+                    Long busRouteId = arrival.path("busRouteId").asLong();
+                    String busNum = arrival.path("rtNm").asText();
+                    String arrivalMsg1 = arrival.path("arrmsg1").asText();
+                    String direction = arrival.path("adirection").asText();
+                    Long vehicleId = arrival.path("vehId1").asLong();
+
+                    Map<String, Object> arrivalInfo = new HashMap<>();
+
+                    arrivalInfo.put("busRouteId", busRouteId);
+                    arrivalInfo.put("busNumber", busNum);
+                    arrivalInfo.put("arrivalMsg1", arrivalMsg1);
+                    arrivalInfo.put("direction", direction);
+                    arrivalInfo.put("vehicleId", vehicleId);
+
+                    arrivalInfoList.add(arrivalInfo);
+                }
+            }
+            busArrivalList.put("busList", arrivalInfoList);
+            busArrivalList.put("stationName", stationName);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busArrivalList);
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> searchBusStation(String keyword) {
+
+        Map<String, Object> busStationList = new HashMap<>();
+
+        if (keyword.isEmpty())
+            checkKeywordEmpty(busStationList, "stationList");
+
+        try {
+            List<Map<String, Object>> busStationInfoList = new ArrayList<>();
+
+            URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByName?ServiceKey=" + busKey + "&stSrch=" + keyword + "&resultType=json");
+
+            JsonNode rootNode = objectMapper.readTree(url);
+            JsonNode stationList = rootNode.path("msgBody").path("itemList");
+
+            addStationList(busStationList, busStationInfoList, stationList, "stId", "stNm", "arsId", "tmY", "tmX");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busStationList);
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> findNearByStationList(double gpsX, double gpsY, int distance) {
+
+        Map<String, Object> busStationList = new HashMap<>();
+
+        try {
+            List<Map<String, Object>> busStationInfoList = new ArrayList<>();
+
+            URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=" + busKey + "&tmX=" + gpsX + "&tmY=" + gpsY + "&radius=" + distance + "&resultType=json");
+
+            JsonNode rootNode = objectMapper.readTree(url);
+            JsonNode stationList = rootNode.path("msgBody").path("itemList");
+
+            addStationList(busStationList, busStationInfoList, stationList, "stationId", "stationNm", "arsId", "gpsY", "gpsX");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busStationList);
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> calculateDistance(String startingPoint, String destination) {
+
+        Map<String, Object> subwayInfo = new HashMap<>();
+
+        try {
+            // Directions API 요청을 보낼 URL 설정
+            String url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + startingPoint + "&destination=" + destination + "&mode=transit&key=" + apiKey;
+
+            // Directions API 요청 보내기
+            URL apiUrl = new URL(url);
+            HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
+            conn.setRequestMethod("GET");
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            // 응답 JSON 파싱
+            JsonNode rootNode = objectMapper.readTree(in);
+            JsonNode routeInfo = rootNode.path("routes").get(0).get("legs").get(0);
+
+            String departure = routeInfo.get("departure_time").get("text").asText();
+            String arrivalTime = routeInfo.get("arrival_time").get("text").asText();
+            String duration = routeInfo.get("duration").get("text").asText();
+
+            // 경로 및 이동 수단에 따른 예상 소요 시간 출력
+            subwayInfo.put("startingPoint", startingPoint);
+            subwayInfo.put("destination", destination);
+            subwayInfo.put("departureTime", departure);
+            subwayInfo.put("arrivalTime", arrivalTime);
+            subwayInfo.put("duration", duration);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(subwayInfo);
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> parseBusStationInfo() {
+
+        String filePath = "src/main/resources/busStationLocationInfo.csv";
+
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            List<String[]> rows = new ArrayList<>();
+
+            // 첫 줄은 컬럼 이름이므로 스킵
+            br.readLine();
+
+            // 한 줄씩 읽어서 파싱
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+                rows.add(values);
+            }
+
+            // 파싱 결과 출력
+            for (String[] row : rows) {
+
+                busStationRepository.save(new BusStation(Long.parseLong(row[5]), row[1], Double.parseDouble(row[2]), Double.parseDouble(row[3]),
+                        Integer.parseInt(row[6]), row[7], row[8]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok("성공");
+    }
+
+    public void addStationList(Map<String, Object> map, List<Map<String, Object>> list, JsonNode jsonNode,
+                               String stId, String stName, String stNum, String y, String x) {
+
+        if (jsonNode.isArray()) {
+            for (JsonNode station : jsonNode) {
+
+                Long stationId = station.path(stId).asLong();
+                Long stationNum = station.path(stNum).asLong();
+                String stationName = station.path(stName).asText();
+                double latitude = station.path(y).asDouble();
+                double longitude = station.path(x).asDouble();
+
+                Map<String, Object> stationInfo = new HashMap<>();
+
+                stationInfo.put("stationId", stationId);
+                stationInfo.put("stationNum", stationNum);
+                stationInfo.put("stationName", stationName);
+                stationInfo.put("latitude", latitude);
+                stationInfo.put("longitude", longitude);
+
+                list.add(stationInfo);
+            }
+        }
+        map.put("stationList", list);
+    }
+
+    public ResponseEntity<?> checkKeywordEmpty(Map<String, Object> map, String key) {
+
+        map.put(key, emptyArray);
+
+        return ResponseEntity.status(ResCode.DATA_EMPTY.getStatus()).body(map);
+    }
+
+
+//    @Transactional
+//    public ResponseEntity<?> parseBusRouteInfo() {
+//
+//        String filePath = "src/main/resources/busRouteId.csv";
+//
+//        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+//            String line;
+//            List<String[]> rows = new ArrayList<>();
+//
+//            br.readLine();
+//
+//            while ((line = br.readLine()) != null) {
+//                String[] values = line.split(",");
+//                rows.add(values);
+//            }
+//
+//            for (String[] row : rows) {
+//
+//                busRouteRepository.save(new BusRoute(row[0], Long.parseLong(row[1])));
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return ResponseEntity.ok("성공");
+//    }
 }
 
