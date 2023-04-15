@@ -12,46 +12,13 @@ public class TrafficController {
 
     private final TrafficService trafficService;
 
-    @GetMapping(value = "/subway/arrival")
-    public ResponseEntity<?> getSubwayArrivalInfo(@RequestParam String keyword) {
+    @GetMapping(value = "/calculate/travel-time")
+    public ResponseEntity<?> calculateTravelTime(@RequestParam String departurePoint,
+                                                 @RequestParam String destinationPoint,
+                                                 @RequestParam String departureLine,
+                                                 @RequestParam String destinationLine) {
 
-        return trafficService.getSubwayArrivalInfo(keyword);
-    }
-
-
-    @GetMapping(value = "/bus/arrival")
-    public ResponseEntity<?> getBusArrivalInfo(@RequestParam String stationNum) {
-
-        return trafficService.getBusArrivalInfo(stationNum);
-    }
-
-
-    @GetMapping(value = "/search/busStation")
-    public ResponseEntity<?> searchBusStation(@RequestParam String keyword){
-
-        return trafficService.searchBusStation(keyword);
-    }
-
-
-    @GetMapping(value = "/nearby/busStation")
-    public ResponseEntity<?> findNearByBusStationList(@RequestParam double x,
-                                                      @RequestParam double y,
-                                                      @RequestParam int distance){
-
-        return trafficService.findNearByStationList(x, y, distance);
-    }
-
-
-    @GetMapping(value = "/busStop/info/parse")
-    public ResponseEntity<?> parseBusInfo() {
-
-        return trafficService.parseBusStationInfo();
-    }
-
-    @GetMapping(value = "/calculate/distance")
-    public ResponseEntity<?> calculateDistance(@RequestParam String startingPoint, @RequestParam String destination) {
-
-        return trafficService.calculateDistance(startingPoint, destination);
+        return trafficService.calculateTravelTime(departurePoint, destinationPoint, departureLine, destinationLine);
     }
 
 //    @GetMapping(value = "/busRouteInfo/parse")
