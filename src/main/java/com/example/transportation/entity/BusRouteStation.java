@@ -27,7 +27,7 @@ public class BusRouteStation {
     private int stationOrder;
 
     @Column(nullable = false)
-    private String busNum;
+    private String busNumber;
 
     @Column(nullable = false)
     private String stationName;
@@ -38,7 +38,7 @@ public class BusRouteStation {
         this.stationId = stationId;
         this.upDown = upDown;
         this.stationOrder = stationOrder;
-        this.busNum = busNum;
+        this.busNumber = busNum;
         this.stationName = stationName;
     }
 }

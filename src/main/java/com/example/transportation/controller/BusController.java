@@ -15,10 +15,16 @@ public class BusController {
 
     private final BusService busService;
 
-    @GetMapping(value = "/arrival")
+    @GetMapping(value = "/arrival/seoul")
     public ResponseEntity<?> getBusArrivalInfo(@RequestParam String stationNum) {
 
         return busService.getBusArrivalInfo(stationNum);
+    }
+
+    @GetMapping("/arrival/gyeonggi")
+    public ResponseEntity<?> getBusArrivalGyeonggi(@RequestParam Long stationId){
+
+        return busService.getBusArrivalGyeonggi(stationId);
     }
 
 

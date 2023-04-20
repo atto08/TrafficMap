@@ -1,14 +1,14 @@
 package com.example.transportation.service;
 
-import com.example.transportation.dto.response.ArrivalInfo;
-import com.example.transportation.dto.response.FailMsgDto;
-import com.example.transportation.dto.response.ResCode;
+import com.example.transportation.dto.response.*;
 import com.example.transportation.entity.SubwayStation;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +29,8 @@ public class SubwayService {
     private final SubwayStationRepository subwayStationRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final HttpHeaders headers = new HttpHeaders();
 
     private final String[] emptyArray = {};
 
@@ -90,8 +92,9 @@ public class SubwayService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(subwayArrivalList);
+        return new ResponseEntity<>(subwayArrivalList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
@@ -112,7 +115,9 @@ public class SubwayService {
 
         stationList.put("stationList", subwayStations);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(stationList);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(stationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
@@ -130,7 +135,9 @@ public class SubwayService {
 
         stationList.put("stationList", subwayStations);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(stationList);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(stationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
@@ -143,7 +150,9 @@ public class SubwayService {
         subwayStations.addAll(subwayStationList);
 
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(station);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(subwayStations, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 

@@ -1,20 +1,28 @@
 package com.example.transportation.service;
 
+import com.example.transportation.dto.response.BusArrivalDto;
+import com.example.transportation.dto.response.BusArrivalListDto;
 import com.example.transportation.dto.response.ResCode;
 import com.example.transportation.entity.BusRouteStation;
 import com.example.transportation.repository.BusRouteStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +36,8 @@ public class BusService {
     private final BusRouteStationRepository busRouteStationRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final HttpHeaders headers = new HttpHeaders();
 
     private final String[] emptyArray = {};
 
@@ -87,8 +97,81 @@ public class BusService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busArrivalList);
+        return new ResponseEntity<>(busArrivalList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
+    }
+
+
+    @Transactional
+    public ResponseEntity<?> getBusArrivalGyeonggi(Long stationId) {
+
+        BusArrivalListDto busArrivalListDto = new BusArrivalListDto();
+
+        try {
+            List<BusArrivalDto> arrivalInfoList = new ArrayList<>();
+
+            // 정류소에 도착하는 실시간 버스 도착 정보 Open Api
+            URI url = new URI("https://apis.data.go.kr/6410000/busarrivalservice/getBusArrivalList?serviceKey=" + busKey + "&stationId=" + stationId);
+
+            RestTemplate restTemplate = new RestTemplate();
+            String xmlResult = restTemplate.getForObject(url, String.class);
+
+            XmlMapper xmlMapper = new XmlMapper();
+            JsonNode rootNode = xmlMapper.readTree(xmlResult);
+
+            JsonNode arrivalList = rootNode.path("msgBody").path("busArrivalList");
+            System.out.println("arrivalList = " + arrivalList);
+
+//            // 도착정보를 제공하는 정류소인지 체크
+//            if (arrivalList.isNull()) {
+//                busArrivalList.put("stationName", null);
+//                busArrivalList.put("busList", emptyArray);
+//
+//                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(busArrivalList);
+//            }
+
+            JsonNode forStationName = arrivalList.path(0);
+
+            BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
+            String stationName = busStation.getStationName();
+
+            // 도착 예정 버스목록 관련 데이터 파싱
+            if (arrivalList.isArray()) {
+                for (JsonNode arrival : arrivalList) {
+
+                    Long routeId = arrival.path("routeId").asLong();
+                    int stationOrder = arrival.path("staOrder").asInt();
+                    int estimatedArrival1 = arrival.path("predictTime1").asInt();
+                    int estimatedArrival2 = arrival.path("predictTime2").asInt();
+                    int locationNow = arrival.path("locationNo1").asInt();
+
+                    BusRouteStation bus = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(routeId, stationId, stationOrder);
+                    String busNumber = bus.getBusNumber();
+
+                    BusArrivalDto arrivalInfo = new BusArrivalDto();
+
+                    arrivalInfo.setRouteId(routeId);
+                    arrivalInfo.setBusNumber(busNumber);
+                    arrivalInfo.setStationOrder(stationOrder);
+                    arrivalInfo.setArrivalMsg1(estimatedArrival1 + "분전");
+                    arrivalInfo.setLocationNow(locationNow + "정류소 전");
+
+                    arrivalInfoList.add(arrivalInfo);
+                }
+            }
+            busArrivalListDto.setBusArrivalList(arrivalInfoList);
+            busArrivalListDto.setStationName(stationName);
+
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(busArrivalListDto, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
@@ -117,8 +200,9 @@ public class BusService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busStationList);
+        return new ResponseEntity<>(busStationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
@@ -144,8 +228,9 @@ public class BusService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(busStationList);
+        return new ResponseEntity<>(busStationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 

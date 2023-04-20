@@ -1,5 +1,6 @@
 package com.example.transportation.service;
 
+import com.example.transportation.dto.response.CalculateDistanceDto;
 import com.example.transportation.dto.response.ResCode;
 import com.example.transportation.entity.SubwayStation;
 import com.example.transportation.repository.SubwayStationRepository;
@@ -7,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,15 +19,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class TrafficService {
 
+    private final SubwayStationRepository subwayStationRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final SubwayStationRepository subwayStationRepository;
+    private final HttpHeaders headers = new HttpHeaders();
+
 
     @Value("${googleApiKey}")
     String apiKey;
@@ -32,7 +37,7 @@ public class TrafficService {
     @Transactional
     public ResponseEntity<?> calculateTravelTime(String departurePoint, String destinationPoint, String departureLine, String destinationLine) {
 
-        Map<String, Object> subwayInfo = new HashMap<>();
+        CalculateDistanceDto arrivalInfo = new CalculateDistanceDto();
 
         SubwayStation origin = subwayStationRepository.findByStationNameAndSubwayLine(departurePoint,departureLine);
         SubwayStation destination = subwayStationRepository.findByStationNameAndSubwayLine(destinationPoint,destinationLine);
@@ -56,17 +61,19 @@ public class TrafficService {
             String duration = routeInfo.get("duration").get("text").asText();
 
             // 경로 및 이동 수단에 따른 예상 소요 시간 출력
-            subwayInfo.put("departure", departurePoint);
-            subwayInfo.put("destination", destinationPoint);
-            subwayInfo.put("departureTime", departureTime);
-            subwayInfo.put("arrivalTime", arrivalTime);
-            subwayInfo.put("duration", duration);
+            arrivalInfo.setDeparture(departurePoint);
+            arrivalInfo.setDestination(destinationPoint);
+            arrivalInfo.setDepartureTime(departureTime);
+            arrivalInfo.setArrivalTime(arrivalTime);
+            arrivalInfo.setDurationTime(duration);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return ResponseEntity.status(ResCode.DATA_LOAD_SUCCESS.getStatus()).body(subwayInfo);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(arrivalInfo, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 }
