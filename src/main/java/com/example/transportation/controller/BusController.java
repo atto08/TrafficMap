@@ -15,10 +15,17 @@ public class BusController {
 
     private final BusService busService;
 
-    @GetMapping(value = "/arrival/seoul")
-    public ResponseEntity<?> getBusArrivalInfo(@RequestParam String stationNum) {
+    @GetMapping(value = "/arrival")
+    public ResponseEntity<?> getBusArrival(@RequestParam Long stationId,
+                                           @RequestParam int localState){
 
-        return busService.getBusArrivalInfo(stationNum);
+        return busService.getBusArrival(stationId, localState);
+    }
+
+    @GetMapping(value = "/arrival/seoul")
+    public ResponseEntity<?> getBusArrivalInfo(@RequestParam Long stationNum) {
+
+        return busService.getBusArrivalSeoul(stationNum);
     }
 
     @GetMapping("/arrival/gyeonggi")
@@ -44,9 +51,16 @@ public class BusController {
     }
 
 
-    @GetMapping(value = "/parse/busStop")
+    @GetMapping(value = "/parse/busRouteStation")
     public ResponseEntity<?> parseBusRouteStation() {
 
         return busService.parseBusRouteStation();
+    }
+
+
+    @GetMapping(value = "/parse/busStop")
+    public ResponseEntity<?> parseBusStop() {
+
+        return busService.parseBusStop();
     }
 }

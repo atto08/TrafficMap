@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,4 +20,6 @@ public class CalculateDistanceDto {
     private String arrivalTime;
 
     private String durationTime;
+
+    private List<String> polylineList;
 }

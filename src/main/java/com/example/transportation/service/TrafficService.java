@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -39,12 +41,14 @@ public class TrafficService {
 
         CalculateDistanceDto arrivalInfo = new CalculateDistanceDto();
 
+        // 출발/도착 지점의 지하철 역 정보 조회
         SubwayStation origin = subwayStationRepository.findByStationNameAndSubwayLine(departurePoint,departureLine);
         SubwayStation destination = subwayStationRepository.findByStationNameAndSubwayLine(destinationPoint,destinationLine);
 
         try {
             // Directions API 요청을 보낼 URL 설정
-            String url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + origin.getLatitude() + "," + origin.getLongitude() + "&destination=" + destination.getLatitude() + "," + destination.getLongitude() + "&mode=transit&key=" + apiKey;
+            String url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + origin.getLatitude() + "," + origin.getLongitude()
+                    + "&destination=" + destination.getLatitude() + "," + destination.getLongitude() + "&mode=transit&key=" + apiKey;
 
             // Directions API 요청 보내기
             URL apiUrl = new URL(url);
@@ -66,6 +70,21 @@ public class TrafficService {
             arrivalInfo.setDepartureTime(departureTime);
             arrivalInfo.setArrivalTime(arrivalTime);
             arrivalInfo.setDurationTime(duration);
+
+            // polyline 추출
+            JsonNode polylineList = routeInfo.get("steps");
+
+            List<String> polylines = new ArrayList<>();
+
+            if (polylineList.isArray()){
+                for (JsonNode polyline : polylineList){
+                    String poly = polyline.get("polyline").get("points").asText();
+
+                    polylines.add(poly);
+                }
+            }
+
+            arrivalInfo.setPolylineList(polylines);
 
         } catch (IOException e) {
             e.printStackTrace();

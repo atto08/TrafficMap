@@ -1,6 +1,9 @@
 package com.example.transportation.service;
 
 import com.example.transportation.dto.response.*;
+import com.example.transportation.dto.response.subway.SubwayArrivalDto;
+import com.example.transportation.dto.response.subway.SubwayArrivalListDto;
+import com.example.transportation.dto.response.subway.SubwayListDto;
 import com.example.transportation.entity.SubwayStation;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -32,8 +35,6 @@ public class SubwayService {
 
     private final HttpHeaders headers = new HttpHeaders();
 
-    private final String[] emptyArray = {};
-
     @Value("${subwayKey}")
     String subwayKey;
 
@@ -41,21 +42,28 @@ public class SubwayService {
     @Transactional
     public ResponseEntity<?> getSubwayArrivalInfo(String station) {
 
-        Map<String, Object> subwayArrivalList = new HashMap<>();
+        SubwayArrivalListDto subwayArrivalList = new SubwayArrivalListDto();
+        List<SubwayArrivalDto> arrivalInfoList = new ArrayList<>();
 
-        if (station.isEmpty())
-            checkStationEmpty(subwayArrivalList, "subwayList");
+        if (station.isEmpty()) {
+
+            subwayArrivalList.setStationName("정류장을 찾을 수 없습니다.");
+            subwayArrivalList.setSubwayArrivalList(arrivalInfoList);
+
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            return new ResponseEntity<>(subwayArrivalList, headers, ResCode.DATA_EMPTY.getStatus());
+        }
 
         try {
-            List<Map<String, Object>> arrivalInfoList = new ArrayList<>();
-
-            if (station.equals("응암")){
+            // 현재 역명에 문제가 있는 지하철 역 임시로 구분
+            if (station.equals("응암")) {
                 station = "응암순환(상선)";
 
             } else if (station.equals("공릉")) {
                 station = "공릉(서울산업대입구)";
 
-            } else if (station.equals("남한산성입구(성남법원·검찰청)")){
+            } else if (station.equals("남한산성입구(성남법원·검찰청)")) {
                 station = "남한산성입구(성남법원, 검찰청)";
             }
 
@@ -64,6 +72,7 @@ public class SubwayService {
             RestTemplate restTemplate = new RestTemplate();
             String jsonResult = restTemplate.getForObject(url, String.class);
 
+            // 응답 JSON 파싱
             JsonNode rootNode = objectMapper.readTree(jsonResult);
             JsonNode arrivalList = rootNode.path("realtimeArrivalList");
 
@@ -74,20 +83,20 @@ public class SubwayService {
                     int id = arrival.path("rowNum").asInt();
                     String arrivalArea = arrival.path("trainLineNm").asText();
                     String arrivalMsg = arrival.path("arvlMsg2").asText();
-                    String currentLocation = arrival.path("arvlMsg3").asText();
+                    String locationNow = arrival.path("arvlMsg3").asText();
 
-                    Map<String, Object> arrivalInfo = new HashMap<>();
+                    SubwayArrivalDto subwayArrivalDto = new SubwayArrivalDto();
 
-                    arrivalInfo.put("id", id);
-                    arrivalInfo.put("arrivalArea", arrivalArea);
-                    arrivalInfo.put("arrivalMsg", arrivalMsg);
-                    arrivalInfo.put("currentLocation", currentLocation);
+                    subwayArrivalDto.setId(id);
+                    subwayArrivalDto.setArrivalArea(arrivalArea);
+                    subwayArrivalDto.setArrivalMsg(arrivalMsg);
+                    subwayArrivalDto.setLocationNow(locationNow);
 
-                    arrivalInfoList.add(arrivalInfo);
+                    arrivalInfoList.add(subwayArrivalDto);
                 }
             }
-            subwayArrivalList.put("subwayList", arrivalInfoList);
-            subwayArrivalList.put("stationName", stationName);
+            subwayArrivalList.setStationName(stationName);
+            subwayArrivalList.setSubwayArrivalList(arrivalInfoList);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -101,20 +110,30 @@ public class SubwayService {
     @Transactional
     public ResponseEntity<?> searchSubwayStation(String station) {
 
-        Map<String, Object> stationList = new HashMap<>();
-
-        if (station.isEmpty())
-            checkStationEmpty(stationList, "stationList");
-
-        List<SubwayStation> subwayStationList = subwayStationRepository.findAllByStationNameContains(station);
+        SubwayListDto stationList = new SubwayListDto();
         List<SubwayStation> subwayStations = new ArrayList<>();
 
+        // Null check
+        if (station == null || station.isEmpty()) {
+
+            stationList.setStationList(subwayStations);
+            // response 타입 지정
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            return new ResponseEntity<>(stationList, headers, ResCode.DATA_EMPTY.getStatus());
+        }
+
+        // subway station 테이블에서 station 키워드를 포함한 전부를 찾기
+        List<SubwayStation> subwayStationList = subwayStationRepository.findAllByStationNameContains(station);
+
+
+        // 순차적으로 배열에 집어넣기
         for (SubwayStation subwayStation : subwayStationList) {
             subwayStations.add(subwayStation);
         }
 
-        stationList.put("stationList", subwayStations);
-
+        stationList.setStationList(subwayStations);
+        // response 타입 지정
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         return new ResponseEntity<>(stationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
@@ -156,12 +175,6 @@ public class SubwayService {
     }
 
 
-    public String stationNameToDirections(double latitude, double longitude){
-
-        return latitude + "," + longitude;
-    }
-
-
     @Transactional
     public ResponseEntity<?> parseSubwayStation() {
 
@@ -188,14 +201,6 @@ public class SubwayService {
         }
 
         return ResponseEntity.ok("저장성공");
-    }
-
-
-    public ResponseEntity<?> checkStationEmpty(Map<String, Object> map, String key) {
-
-        map.put(key, emptyArray);
-
-        return ResponseEntity.status(ResCode.DATA_EMPTY.getStatus()).body(map);
     }
 
 

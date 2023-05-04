@@ -1,17 +1,17 @@
 package com.example.transportation.service;
 
-import com.example.transportation.dto.response.BusArrivalDto;
-import com.example.transportation.dto.response.BusArrivalListDto;
+import com.example.transportation.dto.response.bus.*;
 import com.example.transportation.dto.response.ResCode;
 import com.example.transportation.entity.BusRouteStation;
+import com.example.transportation.entity.BusStop;
 import com.example.transportation.repository.BusRouteStationRepository;
+import com.example.transportation.repository.BusStopRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -35,6 +35,8 @@ public class BusService {
 
     private final BusRouteStationRepository busRouteStationRepository;
 
+    private final BusStopRepository busStopRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final HttpHeaders headers = new HttpHeaders();
@@ -45,99 +47,100 @@ public class BusService {
     String busKey;
 
 
-    // 정류소에 도착예정 버스목록 제공 기능
     @Transactional
-    public ResponseEntity<?> getBusArrivalInfo(String stationNum) {
+    public ResponseEntity<?> getBusArrival(Long station, int state) {
 
-        Map<String, Object> busArrivalList = new HashMap<>();
+        if (state == 0) {
+            // 상태가 0일 때 서울 버스 정류소 도착정보 제공
+            return getBusArrivalSeoul(station);
+        }
+        // 상태가 0이 아닐 때 경기도 버스 정류소 도착정보 제공
+        return getBusArrivalGyeonggi(station);
+    }
+
+    // 서울 버스 도착정보
+    @Transactional
+    public ResponseEntity<?> getBusArrivalSeoul(Long stationNum) {
+        // 데이터를 운반할 Dto class 생성
+        BusArrivalListDto busArrivalListDto = new BusArrivalListDto();
+        List<BusArrivalDto> arrivalInfoList = new ArrayList<>();
 
         try {
-            List<Map<String, Object>> arrivalInfoList = new ArrayList<>();
-
             // 정류소에 도착하는 실시간 버스 도착 정보 Open Api
             URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey=" + busKey + "&arsId=" + stationNum + "&resultType=json");
 
+            // 응답 JSON 파싱
             JsonNode rootNode = objectMapper.readTree(url);
             JsonNode arrivalList = rootNode.path("msgBody").path("itemList");
-
-            // 도착정보를 제공하는 정류소인지 체크
-            if (arrivalList.isNull()) {
-                busArrivalList.put("stationName", null);
-                busArrivalList.put("busList", emptyArray);
-
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(busArrivalList);
-            }
 
             String stationName = arrivalList.get(0).path("stNm").asText();
 
             // 도착 예정 버스목록 관련 데이터 파싱
             if (arrivalList.isArray()) {
+                // 순차적으로 찾은 정보를 List 에 담기
                 for (JsonNode arrival : arrivalList) {
 
-                    Long busRouteId = arrival.path("busRouteId").asLong();
+                    Long routeId = arrival.path("busRouteId").asLong();
                     String busNum = arrival.path("rtNm").asText();
                     String arrivalMsg1 = arrival.path("arrmsg1").asText();
-                    String direction = arrival.path("adirection").asText();
-                    Long vehicleId = arrival.path("vehId1").asLong();
+                    String localNow = arrival.path("stationNm1").asText();
 
-                    Map<String, Object> arrivalInfo = new HashMap<>();
+                    BusArrivalDto arrivalInfo = new BusArrivalDto();
 
-                    arrivalInfo.put("busRouteId", busRouteId);
-                    arrivalInfo.put("busNumber", busNum);
-                    arrivalInfo.put("arrivalMsg1", arrivalMsg1);
-                    arrivalInfo.put("direction", direction);
-                    arrivalInfo.put("vehicleId", vehicleId);
+                    arrivalInfo.setRouteId(routeId);
+                    arrivalInfo.setBusNumber(busNum);
+                    arrivalInfo.setArrivalMsg1(arrivalMsg1);
+                    arrivalInfo.setLocationNow(localNow);
 
+                    // BusArrivalDto 에 List 로 정보 담기
                     arrivalInfoList.add(arrivalInfo);
                 }
             }
-            busArrivalList.put("busList", arrivalInfoList);
-            busArrivalList.put("stationName", stationName);
+            // BusArrivalListDto 에 정보 담기
+            busArrivalListDto.setBusArrivalList(arrivalInfoList);
+            busArrivalListDto.setStationName(stationName);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // 출력 형식을 Json 형식으로 설정
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        return new ResponseEntity<>(busArrivalList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
+        return new ResponseEntity<>(busArrivalListDto, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
     }
 
 
+    // 경기도 버스 도착정보
     @Transactional
     public ResponseEntity<?> getBusArrivalGyeonggi(Long stationId) {
 
+        // 데이터를 운반할 Dto class 생성
         BusArrivalListDto busArrivalListDto = new BusArrivalListDto();
+        List<BusArrivalDto> arrivalInfoList = new ArrayList<>();
 
         try {
-            List<BusArrivalDto> arrivalInfoList = new ArrayList<>();
-
-            // 정류소에 도착하는 실시간 버스 도착 정보 Open Api
+            // 경기도 버스 정류소에 도착하는 실시간 버스 도착 정보 Open Api
             URI url = new URI("https://apis.data.go.kr/6410000/busarrivalservice/getBusArrivalList?serviceKey=" + busKey + "&stationId=" + stationId);
 
+            // Xml 형식 데이터를 문자로 저장
             RestTemplate restTemplate = new RestTemplate();
             String xmlResult = restTemplate.getForObject(url, String.class);
 
+            // Xml 형식 데이터를 Json 형식으로 변환하기 위해 사용
             XmlMapper xmlMapper = new XmlMapper();
-            JsonNode rootNode = xmlMapper.readTree(xmlResult);
+            JsonNode rootNode = xmlMapper.readTree(xmlResult);      // xml to Json
 
             JsonNode arrivalList = rootNode.path("msgBody").path("busArrivalList");
-            System.out.println("arrivalList = " + arrivalList);
-
-//            // 도착정보를 제공하는 정류소인지 체크
-//            if (arrivalList.isNull()) {
-//                busArrivalList.put("stationName", null);
-//                busArrivalList.put("busList", emptyArray);
-//
-//                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(busArrivalList);
-//            }
-
             JsonNode forStationName = arrivalList.path(0);
 
-            BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
+            // 정류소 이름을 특정 짓기 위해 DB 에서 해당하는 정류소명 불러오기
+            BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder
+                    (forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
             String stationName = busStation.getStationName();
 
             // 도착 예정 버스목록 관련 데이터 파싱
             if (arrivalList.isArray()) {
+                // 순차적으로 찾은 정보를 List 에 담기
                 for (JsonNode arrival : arrivalList) {
 
                     Long routeId = arrival.path("routeId").asLong();
@@ -145,7 +148,7 @@ public class BusService {
                     int estimatedArrival1 = arrival.path("predictTime1").asInt();
                     int estimatedArrival2 = arrival.path("predictTime2").asInt();
                     int locationNow = arrival.path("locationNo1").asInt();
-
+                    // 버스 번호 (ex. 10-1) 를 DB 에서 불러오기
                     BusRouteStation bus = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(routeId, stationId, stationOrder);
                     String busNumber = bus.getBusNumber();
 
@@ -153,13 +156,14 @@ public class BusService {
 
                     arrivalInfo.setRouteId(routeId);
                     arrivalInfo.setBusNumber(busNumber);
-                    arrivalInfo.setStationOrder(stationOrder);
                     arrivalInfo.setArrivalMsg1(estimatedArrival1 + "분전");
                     arrivalInfo.setLocationNow(locationNow + "정류소 전");
 
+                    // BusArrivalDto 에 List 로 정보 담기
                     arrivalInfoList.add(arrivalInfo);
                 }
             }
+            // BusArrivalListDto 에 정보 담기
             busArrivalListDto.setBusArrivalList(arrivalInfoList);
             busArrivalListDto.setStationName(stationName);
 
@@ -168,7 +172,9 @@ public class BusService {
 
         } catch (IOException e) {
             e.printStackTrace();
+
         }
+        // 출력 형식을 Json 형식으로 설정
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         return new ResponseEntity<>(busArrivalListDto, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
@@ -178,28 +184,57 @@ public class BusService {
     // 버스 정류소 검색
     @Transactional
     public ResponseEntity<?> searchBusStation(String station) {
+        // 데이터를 운반할 Dto class 생성
+        SearchBusStationListDto busStationList = new SearchBusStationListDto();
+        List<BusStationListDto> busStationInfoList = new ArrayList<>();
 
-        Map<String, Object> busStationList = new HashMap<>();
+        // Null Check
+        if (station.isEmpty()){
+            busStationList.setBusStationList(busStationInfoList);
 
-        // null 체크
-        if (station.isEmpty())
-            checkStationEmpty(busStationList, "stationList");
+            // 출력 형식을 Json 형식으로 설정
+            return ResponseEntity.status(ResCode.DATA_EMPTY.getStatus()).body(busStationList);
+        }
 
         try {
-            List<Map<String, Object>> busStationInfoList = new ArrayList<>();
-
             // 키워드에 해당되는 정류소 값을 Response 해주는 Open Api
             URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByName?ServiceKey=" + busKey + "&stSrch=" + station + "&resultType=json");
 
+            // 응답 JSON 파싱
             JsonNode rootNode = objectMapper.readTree(url);
             JsonNode stationList = rootNode.path("msgBody").path("itemList");
 
-            // 정류소 관련 데이터 추가 및 파싱
-            addStationList(busStationList, busStationInfoList, stationList, "stId", "stNm", "arsId", "tmY", "tmX");
+            // 서울 정류소 찾기 및 추가
+            addStationList(busStationInfoList, stationList, "stNm", "arsId", "tmY", "tmX");
+
+            // 경기도 정류소 찾기 및 추가
+            List<BusStop> busStationList2 = busStopRepository.findAllByStationNameContains(station);
+
+            // 순차적으로 찾은 정보를 List 에 담기
+            for (BusStop busStation : busStationList2) {
+                String stationName = busStation.getStationName();
+                Long stationId = busStation.getStationId();
+                double latitude = busStation.getLatitude();
+                double longitude = busStation.getLongitude();
+
+                BusStationListDto busStationListDto = new BusStationListDto();
+
+                busStationListDto.setStationId(stationId);
+                busStationListDto.setStationName(stationName);
+                busStationListDto.setLatitude(latitude);
+                busStationListDto.setLongitude(longitude);
+                busStationListDto.setLocalState(1);
+
+                // BusStationListDto 에 정보 담기
+                busStationInfoList.add(busStationListDto);
+            }
+            // SearchBusStationListDto 에 정보 담기
+            busStationList.setBusStationList(busStationInfoList);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // 출력 형식을 Json 형식으로 설정
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         return new ResponseEntity<>(busStationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
@@ -211,23 +246,26 @@ public class BusService {
     public ResponseEntity<?> findNearByStationList(double gpsX, double gpsY, int distance) {
 
         Map<String, Object> busStationList = new HashMap<>();
+        List<BusStationListDto> busStationInfoList = new ArrayList<>();
 
         try {
-            List<Map<String, Object>> busStationInfoList = new ArrayList<>();
-
             // 현재 위치 기준 근처 정류소 값을 Response 해주는 Open Api
             URL url = new URL("http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=" + busKey
                     + "&tmX=" + gpsX + "&tmY=" + gpsY + "&radius=" + distance + "&resultType=json");
 
+            // 응답 JSON 파싱
             JsonNode rootNode = objectMapper.readTree(url);
             JsonNode stationList = rootNode.path("msgBody").path("itemList");
 
             // 정류소 관련 데이터 추가 및 파싱
-            addStationList(busStationList, busStationInfoList, stationList, "stationId", "stationNm", "arsId", "gpsY", "gpsX");
+            addStationList(busStationInfoList, stationList, "stationNm", "arsId", "gpsY", "gpsX");
+
+            busStationList.put("stationList", busStationInfoList);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // 출력 형식을 Json 형식으로 설정
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         return new ResponseEntity<>(busStationList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
@@ -235,34 +273,33 @@ public class BusService {
 
 
     // 정류소 목록에 관련된 데이터 파싱작업을 추가
-    public void addStationList(Map<String, Object> map, List<Map<String, Object>> list, JsonNode jsonNode,
-                               String stId, String stName, String stNum, String y, String x) {
+    public void addStationList(List<BusStationListDto> list, JsonNode jsonNode,
+                               String stName, String stNum, String y, String x) {
 
         // 정류소 관련 데이터 파싱
         if (jsonNode.isArray()) {
+            // 순차적으로 찾은 정보를 List 에 담기
             for (JsonNode station : jsonNode) {
 
-                Long stationId = station.path(stId).asLong();
-                Long stationNum = station.path(stNum).asLong();
+                Long stationId = station.path(stNum).asLong();
                 String stationName = station.path(stName).asText();
                 double latitude = station.path(y).asDouble();
                 double longitude = station.path(x).asDouble();
 
+                BusStationListDto busStationListDto = new BusStationListDto();
 
-                Map<String, Object> stationInfo = new HashMap<>();
+                // stationId 가 0으로 제공되는 경기도 버스는 제거
+                if (stationId != 0) {
+                    busStationListDto.setStationId(stationId);
+                    busStationListDto.setStationName(stationName);
+                    busStationListDto.setLatitude(latitude);
+                    busStationListDto.setLongitude(longitude);
+                    busStationListDto.setLocalState(0);
 
-//                if (stationNum!=0){
-                stationInfo.put("stationId", stationId);
-                stationInfo.put("stationNum", stationNum);
-                stationInfo.put("stationName", stationName);
-                stationInfo.put("latitude", latitude);
-                stationInfo.put("longitude", longitude);
-
-                list.add(stationInfo);
-//                }
+                    list.add(busStationListDto);
+                }
             }
         }
-        map.put("stationList", list);
     }
 
 
@@ -293,14 +330,35 @@ public class BusService {
             e.printStackTrace();
         }
 
-        return ResponseEntity.ok("저장성공");
+        return ResponseEntity.ok("버스 노선/번호 저장성공");
     }
 
+    @Transactional
+    public ResponseEntity<?> parseBusStop() {
 
-    public ResponseEntity<?> checkStationEmpty(Map<String, Object> map, String key) {
+        String filePath = "src/main/resources/busStop.csv";
 
-        map.put(key, emptyArray);
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            List<String[]> rows = new ArrayList<>();
 
-        return ResponseEntity.status(ResCode.DATA_EMPTY.getStatus()).body(map);
+            // 첫 줄은 컬럼 이름이므로 스킵
+            br.readLine();
+
+            // 한 줄씩 읽어서 파싱
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+                rows.add(values);
+            }
+
+            for (String[] row : rows) {
+                // BusStop Table 에 저장.
+                busStopRepository.save(new BusStop(Long.parseLong(row[0]), row[1], Double.parseDouble(row[5]), Double.parseDouble(row[4]), row[6]));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok("버스정류장 저장성공");
     }
 }

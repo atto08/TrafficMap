@@ -11,5 +11,5 @@ public interface SubwayStationRepository extends JpaRepository<SubwayStation, Lo
 
     List<SubwayStation> findAllByStationNameContains(String stationName);
 
-    SubwayStation findByStationNameAndSubwayLine(String stationName, String subwayLine);
+    SubwayStation findByStationNameAndSubwayLine(Object stationName, Object subwayLine);
 }
