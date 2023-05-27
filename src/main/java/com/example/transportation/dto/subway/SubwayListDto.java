@@ -1,4 +1,4 @@
-package com.example.transportation.dto.response.subway;
+package com.example.transportation.dto.subway;
 
 import com.example.transportation.entity.SubwayStation;
 import lombok.Getter;

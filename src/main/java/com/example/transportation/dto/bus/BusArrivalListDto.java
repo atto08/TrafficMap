@@ -1,4 +1,4 @@
-package com.example.transportation.dto.response.bus;
+package com.example.transportation.dto.bus;
 
 import lombok.Getter;
 import lombok.Setter;

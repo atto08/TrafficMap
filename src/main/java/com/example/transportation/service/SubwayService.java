@@ -1,9 +1,9 @@
 package com.example.transportation.service;
 
-import com.example.transportation.dto.response.*;
-import com.example.transportation.dto.response.subway.SubwayArrivalDto;
-import com.example.transportation.dto.response.subway.SubwayArrivalListDto;
-import com.example.transportation.dto.response.subway.SubwayListDto;
+import com.example.transportation.dto.ResCode;
+import com.example.transportation.dto.subway.SubwayArrivalDto;
+import com.example.transportation.dto.subway.SubwayArrivalListDto;
+import com.example.transportation.dto.subway.SubwayListDto;
 import com.example.transportation.entity.SubwayStation;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;

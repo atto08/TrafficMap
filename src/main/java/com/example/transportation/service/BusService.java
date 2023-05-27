@@ -1,7 +1,10 @@
 package com.example.transportation.service;
 
-import com.example.transportation.dto.response.bus.*;
-import com.example.transportation.dto.response.ResCode;
+import com.example.transportation.dto.bus.BusArrivalDto;
+import com.example.transportation.dto.bus.BusArrivalListDto;
+import com.example.transportation.dto.bus.BusStationListDto;
+import com.example.transportation.dto.bus.SearchBusStationListDto;
+import com.example.transportation.dto.ResCode;
 import com.example.transportation.entity.BusRouteStation;
 import com.example.transportation.entity.BusStop;
 import com.example.transportation.repository.BusRouteStationRepository;

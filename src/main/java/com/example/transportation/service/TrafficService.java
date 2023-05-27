@@ -1,7 +1,7 @@
 package com.example.transportation.service;
 
-import com.example.transportation.dto.response.CalculateDistanceDto;
-import com.example.transportation.dto.response.ResCode;
+import com.example.transportation.dto.CalculateDistanceDto;
+import com.example.transportation.dto.ResCode;
 import com.example.transportation.entity.SubwayStation;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
