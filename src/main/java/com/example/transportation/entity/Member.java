@@ -29,16 +29,19 @@ public class Member {
     @Size(min = 1, max = 255)
     private String email;
 
-    @NotNull
     @Size(min = 1, max = 255)
     private String password;
 
-    @NotNull
-    @Size(min = 1, max = 255)
-    private String pnum;
-
     @Size(min = 1, max = 1000)
-    private String uimg;
+    private String profileImageUrl;
+
+
+    public Member(String name, String email, String password,String profileImageUrl){
+        this.name = name;
+        this.email = email;
+        this.password = password;
+        this.profileImageUrl = profileImageUrl;
+    }
 
 
     @ManyToMany

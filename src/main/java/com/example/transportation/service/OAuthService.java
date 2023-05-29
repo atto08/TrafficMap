@@ -20,16 +20,17 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+
 import javax.transaction.Transactional;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,49 +41,37 @@ public class OAuthService {
     private final KakaoOAuth kakaoOAuth;
     private final GoogleOAuth googleOAuth;
     private final TokenProvider tokenProvider;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final RedisDao redisDao;
-    UsernamePasswordAuthenticationToken authenticationToken = null;
     // validate 및 단순 메소드
     Authority authority = Authority.builder()
             .authorityName("ROLE_USER")
             .build();
 
-    private ResponseEntity<MemberDto.socialLoginResponse> Login(String email, String name, String uimg) {
-        if (email.contains("gmail")) {
-            authenticationToken = new UsernamePasswordAuthenticationToken(email, "google");
-        }
-        if (email.contains("daum")) {
-            authenticationToken = new UsernamePasswordAuthenticationToken(email, "kakao");
-        }
+    private ResponseEntity<MemberDto.socialLoginResponse> Login(Member memberInfo) {
 
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(memberInfo.getEmail(), memberInfo.getPassword());
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String atk = tokenProvider.createToken(authentication);
-        String rtk = tokenProvider.createRefreshToken(email);
+        String rtk = tokenProvider.createRefreshToken(memberInfo.getEmail());
 
-        redisDao.setValues(email, rtk, Duration.ofDays(14));
+        redisDao.setValues(memberInfo.getEmail(), rtk, Duration.ofDays(14));
 
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add("Authorization", "Bearer " + atk);
 
-        return new ResponseEntity<>(MemberDto.socialLoginResponse.response(
-                name, email, uimg, atk, rtk, "SOCIAL_LOGIN_TRUE"
-        ), HttpStatus.OK);
+        MemberDto.socialLoginResponse httpBody = MemberDto.socialLoginResponse.response(
+                memberInfo.getName(), memberInfo.getEmail(), memberInfo.getProfileImageUrl(), atk, rtk, "SOCIAL_LOGIN_TRUE");
+
+        return new ResponseEntity<>(httpBody, httpHeaders, HttpStatus.OK);
     }
 
-//    private KakaoUserInfoDto getKakaoUserInfoDto(String code) throws JsonProcessingException {
-//        ResponseEntity<String> accessTokenResponse = kakaoOAuth.requestAccessToken(code);
-//        KakaoOAuthTokenDto oAuthToken = kakaoOAuth.getAccessToken(accessTokenResponse);
-//        ResponseEntity<String> userInfoResponse = kakaoOAuth.requestUserInfo(oAuthToken);
-//        KakaoUserInfoDto kakaoUser = kakaoOAuth.getUserInfo(userInfoResponse);
-//        return kakaoUser;
-//    }
 
+    // 구글 서버에 파라미터를 전송 후 accessToken 을 획득 후 전송하여 유저의 정보를 가져오는 과정
     private GoogleUserInfoDto getGoogleUserInfoDto(String code) throws JsonProcessingException {
+
         ResponseEntity<String> accessTokenResponse = googleOAuth.requestAccessToken(code);
-        System.out.println("accessTokenResponse = " + accessTokenResponse);
         GoogleOAuthTokenDto oAuthToken = googleOAuth.getAccessToken(accessTokenResponse);
+
         ResponseEntity<String> userInfoResponse = googleOAuth.requestUserInfo(oAuthToken);
         GoogleUserInfoDto googleUser = googleOAuth.getUserInfo(userInfoResponse);
         return googleUser;
@@ -91,20 +80,34 @@ public class OAuthService {
     // Service
     // 구글 로그인 서비스
     @Transactional
-    public ResponseEntity<MemberDto.socialLoginResponse> googlelogin(String code) throws IOException {
+    public ResponseEntity<MemberDto.socialLoginResponse> googleLogin(String code) throws IOException {
         GoogleUserInfoDto googleUser = getGoogleUserInfoDto(code);
+
         String email = googleUser.getEmail();
         String name = googleUser.getName();
+        String profileImage = googleUser.getPicture();
+        String password = passwordEncoder.encode("google");
+
+        Member member = new Member(name, email, password, profileImage);
+
         // 첫 로그인시 사용자 정보를 보내줌
         if (!memberRepository.existsByEmail(email)) {
+            memberRepository.save(member);
             return new ResponseEntity<>(MemberDto.socialLoginResponse.response(
-                    name, email, null, null, null, "SOCIAL_REGISTER_TRUE"
-            ), HttpStatus.OK);
+                    name, email, profileImage, null, null, "SOCIAL_REGISTER_TRUE"), HttpStatus.OK);
         }
         // 이메일이 존재할시 로그인
-        return Login(email, name, null);
+        return Login(member);
     }
 
+
+//        private KakaoUserInfoDto getKakaoUserInfoDto(String code) throws JsonProcessingException {
+//        ResponseEntity<String> accessTokenResponse = kakaoOAuth.requestAccessToken(code);
+//        KakaoOAuthTokenDto oAuthToken = kakaoOAuth.getAccessToken(accessTokenResponse);
+//        ResponseEntity<String> userInfoResponse = kakaoOAuth.requestUserInfo(oAuthToken);
+//        KakaoUserInfoDto kakaoUser = kakaoOAuth.getUserInfo(userInfoResponse);
+//        return kakaoUser;
+//    }
     // 카카오 로그인 서비스
 //    @Transactional
 //    public ResponseEntity<MemberDto.socialLoginResponse> kakaoLogin(String code) throws IOException {
@@ -131,24 +134,20 @@ public class OAuthService {
         if (request.getEmail().contains("gmail")) {
             social = "google";
         }
-        if (request.getEmail().contains("daum")) {
-            social = "kakao";
-        }
 
         memberRepository.save(
                 Member.builder()
                         .name(request.getName())
                         .email(request.getEmail())
                         .password(passwordEncoder.encode(social))
-                        .pnum(request.getPnum())
-                        .uimg(request.getUimg())
+                        .profileImageUrl(request.getProfileImageUrl())
                         .authorities(Collections.singleton(authority))
                         .build()
         );
 
-        UsernamePasswordAuthenticationToken authenticationToken =
-                new UsernamePasswordAuthenticationToken(request.getEmail(), social);
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+        Optional<Member> memberPassword = memberRepository.findByEmail(request.getEmail());
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(request.getEmail(), memberPassword);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         String atk = tokenProvider.createToken(authentication);

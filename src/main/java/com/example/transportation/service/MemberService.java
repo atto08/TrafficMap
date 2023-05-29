@@ -103,8 +103,7 @@ public class MemberService {
                         .name(request.getName())
                         .email(request.getEmail())
                         .password(passwordEncoder.encode(request.getPassword()))
-                        .pnum(request.getPnum())
-                        .uimg(request.getUimg())
+                        .profileImageUrl(request.getProfileImageUrl())
                         .authorities(Collections.singleton(authority))
                         .build()
         );

@@ -25,8 +25,7 @@ public class MemberDto implements Serializable {
         private String name;
         private String email;
         private String password;
-        private String pnum;
-        private String uimg;
+        private String profileImageUrl;
     }
 
     @Data
@@ -82,16 +81,16 @@ public class MemberDto implements Serializable {
         private final String status;
         private final String name;
         private final String email;
-        private final String img;
+        private final String profileImageUrl;
         private final String atk;
         private final String rtk;
 
-        public static socialLoginResponse response(String name, String email, String img, String atk, String rtk, String status) {
+        public static socialLoginResponse response(String name, String email, String profileImageUrl, String atk, String rtk, String status) {
             return socialLoginResponse.builder()
                     .status(status)
                     .name(name)
                     .email(email)
-                    .img(img)
+                    .profileImageUrl(profileImageUrl)
                     .atk(atk)
                     .rtk(rtk)
                     .build();
@@ -104,16 +103,14 @@ public class MemberDto implements Serializable {
         private Long id;
         private String name;
         private String email;
-        private String pnum;
-        private String uimg;
+        private String profileImageUrl;
 
         public static infoResponse response(@NotNull Member member) {
             return infoResponse.builder()
                     .id(member.getId())
                     .name(member.getName())
                     .email(member.getEmail())
-                    .pnum(member.getPnum())
-                    .uimg(member.getUimg())
+                    .profileImageUrl(member.getProfileImageUrl())
                     .build();
         }
     }

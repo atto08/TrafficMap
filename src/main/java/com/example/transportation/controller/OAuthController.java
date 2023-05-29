@@ -43,8 +43,7 @@ public class OAuthController {
     @GetMapping("/login/google")
     public ResponseEntity<MemberDto.socialLoginResponse> callback(
             @RequestParam(name = "code") String code) throws IOException {
-        System.out.println("controller code = " + code);
-        return oAuthService.googlelogin(code);
+        return oAuthService.googleLogin(code);
     }
 
     // Sosial 로그인 이후 추가 정보 요청
