@@ -136,20 +136,13 @@ public class BusService {
             JsonNode arrivalList = rootNode.path("msgBody").path("busArrivalList");
             JsonNode forStationName = arrivalList.path(0);
 
-            // 정류소 이름을 특정 짓기 위해 DB 에서 해당하는 정류소명 불러오기
-            BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder
-                    (forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
-            String stationName = busStation.getStationName();
-
-            // 도착 예정 버스목록 관련 데이터 파싱
+            // 정류소 도착예정 버스가 리스트 일때
             if (arrivalList.isArray()) {
                 // 순차적으로 찾은 정보를 List 에 담기
                 for (JsonNode arrival : arrivalList) {
-
                     Long routeId = arrival.path("routeId").asLong();
                     int stationOrder = arrival.path("staOrder").asInt();
                     int estimatedArrival1 = arrival.path("predictTime1").asInt();
-                    int estimatedArrival2 = arrival.path("predictTime2").asInt();
                     int locationNow = arrival.path("locationNo1").asInt();
                     // 버스 번호 (ex. 10-1) 를 DB 에서 불러오기
                     BusRouteStation bus = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(routeId, stationId, stationOrder);
@@ -165,15 +158,51 @@ public class BusService {
                     // BusArrivalDto 에 List 로 정보 담기
                     arrivalInfoList.add(arrivalInfo);
                 }
+
+                // 정류소 이름을 특정 짓기 위해 DB 에서 해당하는 정류소명 불러오기
+                BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder
+                        (forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
+                String stationName = busStation.getStationName();
+
+                busArrivalListDto.setStationName(stationName);
+            } // 정류소에 도착예정 버스가 리스트가 아닐때
+            else if (arrivalList.isObject()) {
+                // 순차적으로 찾은 정보담기
+                Long routeId = arrivalList.path("routeId").asLong();
+                int stationOrder = arrivalList.path("staOrder").asInt();
+                int estimatedArrival1 = arrivalList.path("predictTime1").asInt();
+                int locationNow = arrivalList.path("locationNo1").asInt();
+                // 버스 번호 (ex. 10-1) 를 DB 에서 불러오기
+                BusRouteStation bus = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder(routeId, stationId, stationOrder);
+                String busNumber = bus.getBusNumber();
+
+                BusArrivalDto arrivalInfo = new BusArrivalDto();
+
+                arrivalInfo.setRouteId(routeId);
+                arrivalInfo.setBusNumber(busNumber);
+                arrivalInfo.setArrivalMsg1(estimatedArrival1 + "분전");
+                arrivalInfo.setLocationNow(locationNow + "정류소 전");
+
+                // BusArrivalDto 에 List 로 정보 담기
+                arrivalInfoList.add(arrivalInfo);
+
+                // 정류소 이름을 특정 짓기 위해 DB 에서 해당하는 정류소명 불러오기
+                BusRouteStation busStation = busRouteStationRepository.findByRouteIdAndStationIdAndStationOrder
+                        (arrivalList.path("routeId").asLong(), stationId, arrivalList.path("staOrder").asInt());
+                String stationName = busStation.getStationName();
+
+                busArrivalListDto.setStationName(stationName);
             }
+
             // BusArrivalListDto 에 정보 담기
             busArrivalListDto.setBusArrivalList(arrivalInfoList);
-            busArrivalListDto.setStationName(stationName);
 
-        } catch (URISyntaxException e) {
+        } catch (
+                URISyntaxException e) {
             e.printStackTrace();
 
-        } catch (IOException e) {
+        } catch (
+                IOException e) {
             e.printStackTrace();
 
         }
@@ -192,7 +221,7 @@ public class BusService {
         List<BusStationListDto> busStationInfoList = new ArrayList<>();
 
         // Null Check
-        if (station.isEmpty()){
+        if (station.isEmpty()) {
             busStationList.setBusStationList(busStationInfoList);
 
             // 출력 형식을 Json 형식으로 설정

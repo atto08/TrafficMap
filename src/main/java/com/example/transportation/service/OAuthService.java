@@ -58,9 +58,10 @@ public class OAuthService {
 
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.add("Authorization", "Bearer " + atk);
+        httpHeaders.add("Refresh-token",rtk);
 
         MemberDto.socialLoginResponse httpBody = MemberDto.socialLoginResponse.response(
-                memberInfo.getName(), memberInfo.getEmail(), memberInfo.getProfileImageUrl(), atk, rtk, "SOCIAL_LOGIN_TRUE");
+                memberInfo.getName(), memberInfo.getEmail(), memberInfo.getProfileImageUrl(), "SOCIAL_LOGIN_TRUE");
 
         return new ResponseEntity<>(httpBody, httpHeaders, HttpStatus.OK);
     }
@@ -94,7 +95,7 @@ public class OAuthService {
         if (!memberRepository.existsByEmail(email)) {
             memberRepository.save(member);
             return new ResponseEntity<>(MemberDto.socialLoginResponse.response(
-                    name, email, profileImage, null, null, "SOCIAL_REGISTER_TRUE"), HttpStatus.OK);
+                    name, email, profileImage, "SOCIAL_REGISTER_TRUE"), HttpStatus.OK);
         }
         // 이메일이 존재할시 로그인
         return Login(member);

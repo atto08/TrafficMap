@@ -82,17 +82,13 @@ public class MemberDto implements Serializable {
         private final String name;
         private final String email;
         private final String profileImageUrl;
-        private final String atk;
-        private final String rtk;
 
-        public static socialLoginResponse response(String name, String email, String profileImageUrl, String atk, String rtk, String status) {
+        public static socialLoginResponse response(String name, String email, String profileImageUrl, String status) {
             return socialLoginResponse.builder()
                     .status(status)
                     .name(name)
                     .email(email)
                     .profileImageUrl(profileImageUrl)
-                    .atk(atk)
-                    .rtk(rtk)
                     .build();
         }
     }
