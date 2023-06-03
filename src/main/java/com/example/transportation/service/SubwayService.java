@@ -1,10 +1,14 @@
 package com.example.transportation.service;
 
+import com.example.transportation.dto.request.SubwayRouteDto;
 import com.example.transportation.dto.response.*;
 import com.example.transportation.dto.response.subway.SubwayArrivalDto;
 import com.example.transportation.dto.response.subway.SubwayArrivalListDto;
 import com.example.transportation.dto.response.subway.SubwayListDto;
+import com.example.transportation.entity.Member;
+import com.example.transportation.entity.SubwayRouteBookmark;
 import com.example.transportation.entity.SubwayStation;
+import com.example.transportation.repository.SubwayRouteBookmarkRepository;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +34,8 @@ import java.util.Map;
 public class SubwayService {
 
     private final SubwayStationRepository subwayStationRepository;
+
+    private final SubwayRouteBookmarkRepository subwayRouteBookmarkRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -204,22 +210,18 @@ public class SubwayService {
     }
 
 
-//    public ResponseEntity<?> convertStationName(String station){
-//
-//        if (station.equals("광명")||station.equals("서동탄")){
-//            return ResponseEntity.status(ResCode.NO_CONTENT.getStatus()).body(new FailMsgDto(ResCode.NO_CONTENT.getMsg()));
-//
-//        } else if (station.equals("별내별가람")||station.equals("오남")||station.equals("진접")) {
-//            return ResponseEntity.status(ResCode.NO_CONTENT.getStatus()).body(new FailMsgDto(ResCode.NO_CONTENT.getMsg()));
-//
-//        } else if (station.equals("강일")||station.equals("미사")||station.equals("하남검단산")||station.equals("하남시청")||station.equals("하남풍산")){
-//            return ResponseEntity.status(ResCode.NO_CONTENT.getStatus()).body(new FailMsgDto(ResCode.NO_CONTENT.getMsg()));
-//
-//        } else if (station.equals("응암")) {
-//
-//
-//        }
-//
-//    }
+    @Transactional
+    public ResponseEntity<?> bookmarkSubwayStation(Member member, SubwayRouteDto subwayRouteDto) {
+
+        System.out.println("member.getName() = " + member.getName());
+        System.out.println("member.getEmail() = " + member.getEmail());
+        System.out.println("member.getGoogleId() = " + member.getGoogleId());
+
+        subwayRouteBookmarkRepository.save(new SubwayRouteBookmark(member, subwayRouteDto.getDeparture(),subwayRouteDto.getDestination()));
+
+        return ResponseEntity.ok("성공");
+    }
+
+
 
 }

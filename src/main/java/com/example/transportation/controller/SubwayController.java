@@ -1,12 +1,12 @@
 package com.example.transportation.controller;
 
+import com.example.transportation.dto.request.SubwayRouteDto;
+import com.example.transportation.security.MemberDetailsImpl;
 import com.example.transportation.service.SubwayService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -46,5 +46,12 @@ public class SubwayController {
     public ResponseEntity<?> parseSubwayStation() {
 
         return subwayService.parseSubwayStation();
+    }
+
+
+    @PostMapping(value = "/bookmark")
+    public ResponseEntity<?> bookmarkSubwayStation(@AuthenticationPrincipal MemberDetailsImpl memberDetails, @RequestBody SubwayRouteDto subwayRouteDto){
+
+        return subwayService.bookmarkSubwayStation(memberDetails.getMember(), subwayRouteDto);
     }
 }
