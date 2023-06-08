@@ -1,10 +1,12 @@
 package com.example.transportation.service;
 
+import com.example.transportation.dto.request.BusStopDto;
+import com.example.transportation.dto.response.bus.BusStopBookmarkListDto;
 import com.example.transportation.dto.response.bus.*;
 import com.example.transportation.dto.response.ResCode;
-import com.example.transportation.entity.BusRouteStation;
-import com.example.transportation.entity.BusStop;
+import com.example.transportation.entity.*;
 import com.example.transportation.repository.BusRouteStationRepository;
+import com.example.transportation.repository.BusStopBookmarkRepository;
 import com.example.transportation.repository.BusStopRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,16 +26,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class BusService {
 
     private final BusRouteStationRepository busRouteStationRepository;
+
+    private final BusStopBookmarkRepository busStopBookmarkRepository;
 
     private final BusStopRepository busStopRepository;
 
@@ -48,19 +49,19 @@ public class BusService {
 
 
     @Transactional
-    public ResponseEntity<?> getBusArrival(Long station, int state) {
+    public ResponseEntity<?> getBusArrival(Member member, Long station, int state) {
 
         if (state == 0) {
             // 상태가 0일 때 서울 버스 정류소 도착정보 제공
-            return getBusArrivalSeoul(station);
+            return getBusArrivalSeoul(member, station);
         }
         // 상태가 0이 아닐 때 경기도 버스 정류소 도착정보 제공
-        return getBusArrivalGyeonggi(station);
+        return getBusArrivalGyeonggi(member, station);
     }
 
     // 서울 버스 도착정보
     @Transactional
-    public ResponseEntity<?> getBusArrivalSeoul(Long stationNum) {
+    public ResponseEntity<?> getBusArrivalSeoul(Member member, Long stationNum) {
         // 데이터를 운반할 Dto class 생성
         BusArrivalListDto busArrivalListDto = new BusArrivalListDto();
         List<BusArrivalDto> arrivalInfoList = new ArrayList<>();
@@ -74,6 +75,8 @@ public class BusService {
             JsonNode arrivalList = rootNode.path("msgBody").path("itemList");
 
             String stationName = arrivalList.get(0).path("stNm").asText();
+            double latitude = arrivalList.get(0).path("gpsY").asDouble();
+            double longitude = arrivalList.get(0).path("gpsX").asDouble();
 
             // 도착 예정 버스목록 관련 데이터 파싱
             if (arrivalList.isArray()) {
@@ -96,9 +99,15 @@ public class BusService {
                     arrivalInfoList.add(arrivalInfo);
                 }
             }
+
             // BusArrivalListDto 에 정보 담기
             busArrivalListDto.setBusArrivalList(arrivalInfoList);
+            busArrivalListDto.setStationId(stationNum);
             busArrivalListDto.setStationName(stationName);
+            busArrivalListDto.setLatitude(latitude);
+            busArrivalListDto.setLongitude(longitude);
+            busArrivalListDto.setLocalState(0);
+            setBookmarkState(member,stationNum,busArrivalListDto);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -112,7 +121,7 @@ public class BusService {
 
     // 경기도 버스 도착정보
     @Transactional
-    public ResponseEntity<?> getBusArrivalGyeonggi(Long stationId) {
+    public ResponseEntity<?> getBusArrivalGyeonggi(Member member, Long stationId) {
 
         // 데이터를 운반할 Dto class 생성
         BusArrivalListDto busArrivalListDto = new BusArrivalListDto();
@@ -161,7 +170,17 @@ public class BusService {
                         (forStationName.path("routeId").asLong(), stationId, forStationName.path("staOrder").asInt());
                 String stationName = busStation.getStationName();
 
+                BusStop busStop = busStopRepository.findBusStopByStationId(stationId);
+                double latitude = busStop.getLatitude();
+                double longitude = busStop.getLongitude();
+
+                busArrivalListDto.setStationId(stationId);
                 busArrivalListDto.setStationName(stationName);
+                busArrivalListDto.setLatitude(latitude);
+                busArrivalListDto.setLongitude(longitude);
+                busArrivalListDto.setLocalState(1);
+
+                setBookmarkState(member,stationId,busArrivalListDto);
             } // 정류소에 도착예정 버스가 리스트가 아닐때
             else if (arrivalList.isObject()) {
                 // 순차적으로 찾은 정보담기
@@ -188,7 +207,17 @@ public class BusService {
                         (arrivalList.path("routeId").asLong(), stationId, arrivalList.path("staOrder").asInt());
                 String stationName = busStation.getStationName();
 
+                BusStop busStop = busStopRepository.findBusStopByStationId(stationId);
+                double latitude = busStop.getLatitude();
+                double longitude = busStop.getLongitude();
+
+                busArrivalListDto.setStationId(stationId);
                 busArrivalListDto.setStationName(stationName);
+                busArrivalListDto.setLatitude(latitude);
+                busArrivalListDto.setLongitude(longitude);
+                busArrivalListDto.setLocalState(1);
+
+                setBookmarkState(member,stationId,busArrivalListDto);
             }
 
             // BusArrivalListDto 에 정보 담기
@@ -389,5 +418,50 @@ public class BusService {
         }
 
         return ResponseEntity.ok("버스정류장 저장성공");
+    }
+
+    @Transactional
+    public ResponseEntity<?> bookmarkBusStop(Member member, BusStopDto busStopDto) {
+        Optional<BusStopBookmark> existingBookmark = busStopBookmarkRepository.findByMemberAndStationId(member, busStopDto.getStationId());
+
+        if (existingBookmark.isPresent()) {
+            busStopBookmarkRepository.delete(existingBookmark.get());
+            return ResponseEntity.ok("북마크 해제 ☆");
+        } else {
+            BusStopBookmark busStop = new BusStopBookmark(member, busStopDto.getStationId(), busStopDto.getStationName(), busStopDto.getLatitude(), busStopDto.getLongitude(), busStopDto.getLocalState());
+            busStopBookmarkRepository.save(busStop);
+            return ResponseEntity.ok("북마크 추가 ★");
+        }
+    }
+
+    public ResponseEntity<?> myBookmarkBusStop(Member member) {
+
+        BusStopBookmarkListDto bookmarkList = new BusStopBookmarkListDto();
+
+        List<BusStopBookmark> busStopBookmarkList = busStopBookmarkRepository.findAllByMember(member);
+        List<BusStopBookmark> bookmarks = new ArrayList<>();
+
+        for (BusStopBookmark bookmark : busStopBookmarkList) {
+
+            bookmarks.add(bookmark);
+        }
+
+        bookmarkList.setBookmarkList(bookmarks);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(bookmarkList, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
+    }
+
+
+    public void setBookmarkState(Member member, Long stationId, BusArrivalListDto busArrivalListDto){
+        if (member == null) {
+            busArrivalListDto.setBookmarkState(false);
+        } else {
+            if (!busStopBookmarkRepository.existsByMemberAndStationId(member, stationId)) {
+                busArrivalListDto.setBookmarkState(false);
+            } else {
+                busArrivalListDto.setBookmarkState(true);
+            }
+        }
     }
 }

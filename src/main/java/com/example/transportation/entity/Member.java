@@ -30,8 +30,8 @@ public class Member extends TimeStamped {
     @Column(nullable = false)
     private MemberRoleEnum authority;
 
-//    @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE)
-//    private List<Bookmark> bookmarkList;
+    @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE)
+    private List<SubwayRouteBookmark> subwayRouteBookmarkList;
 
     public Member(String email,  String googleId, String name, String encodedPassword, String profileImgUrl, MemberRoleEnum role) {
         this.email = email;

@@ -5,6 +5,7 @@ import com.example.transportation.dto.response.*;
 import com.example.transportation.dto.response.subway.SubwayArrivalDto;
 import com.example.transportation.dto.response.subway.SubwayArrivalListDto;
 import com.example.transportation.dto.response.subway.SubwayListDto;
+import com.example.transportation.dto.response.subway.SubwayRouteBookmarkListDto;
 import com.example.transportation.entity.Member;
 import com.example.transportation.entity.SubwayRouteBookmark;
 import com.example.transportation.entity.SubwayStation;
@@ -24,10 +25,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -212,16 +210,34 @@ public class SubwayService {
 
     @Transactional
     public ResponseEntity<?> bookmarkSubwayStation(Member member, SubwayRouteDto subwayRouteDto) {
+        Optional<SubwayRouteBookmark> existingBookmark = subwayRouteBookmarkRepository.findByMemberAndDepartureAndDestination(member, subwayRouteDto.getDeparture(), subwayRouteDto.getDestination());
 
-        System.out.println("member.getName() = " + member.getName());
-        System.out.println("member.getEmail() = " + member.getEmail());
-        System.out.println("member.getGoogleId() = " + member.getGoogleId());
-
-        subwayRouteBookmarkRepository.save(new SubwayRouteBookmark(member, subwayRouteDto.getDeparture(),subwayRouteDto.getDestination()));
-
-        return ResponseEntity.ok("성공");
+        if (existingBookmark.isPresent()) {
+            subwayRouteBookmarkRepository.delete(existingBookmark.get());
+            return ResponseEntity.ok("북마크 해제 ☆");
+        } else {
+            SubwayRouteBookmark subwayRoute = new SubwayRouteBookmark(member, subwayRouteDto.getDeparture(), subwayRouteDto.getDestination(), subwayRouteDto.getDepartureLine(), subwayRouteDto.getDestinationLine());
+            subwayRouteBookmarkRepository.save(subwayRoute);
+            return ResponseEntity.ok("북마크 추가 ★");
+        }
     }
 
 
+    public ResponseEntity<?> myBookmarkSubwayStation(Member member) {
 
+        SubwayRouteBookmarkListDto bookmarkList = new SubwayRouteBookmarkListDto();
+
+        List<SubwayRouteBookmark> subwayRouteBookmarkList = subwayRouteBookmarkRepository.findAllByMember(member);
+        List<SubwayRouteBookmark> bookmarks = new ArrayList<>();
+
+        for (SubwayRouteBookmark bookmark : subwayRouteBookmarkList) {
+
+            bookmarks.add(bookmark);
+        }
+
+        bookmarkList.setBookmarkList(bookmarks);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        return new ResponseEntity<>(bookmarks, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
+    }
 }

@@ -195,36 +195,4 @@ public class MemberService {
         return new ResponseEntity<>("관리자 설정 완료", HttpStatus.OK);
     }
 
-
-
-    //기본 회원가입
-//    public ResponseEntity<?> signup(SignupRequestDto signupRequestDto) {
-//
-//        // 회원 ID 중복 확인
-//        String nickname = signupRequestDto.getNickname();
-//        Optional<Member> found = memberRepository.findByNickname(nickname);
-//        if (found.isPresent()) {
-//            throw new IllegalArgumentException("중복된 사용자 ID 가 존재합니다.");
-//        }
-//
-//        // 패스워드 암호화
-//        String password = passwordEncoder.encode(signupRequestDto.getPassword());
-//
-//        // 사용자 ROLE 확인
-//        MemberRoleEnum role = MemberRoleEnum.USER;
-//        if (signupRequestDto.isAdmin()) {
-//            if (!signupRequestDto.getAdminToken().equals(ADMIN_TOKEN)) {
-//                throw new IllegalArgumentException("관리자 암호가 틀려 등록이 불가능합니다.");
-//            }
-//            role = MemberRoleEnum.ADMIN;
-//        }
-//
-//        //일반 회원 Id 확인
-//        String id = signupRequestDto.getId();
-//
-//        Member member = new Member(nickname, password, role, id, gender, ageRange, profileImgUrl, location);
-//        memberRepository.save(member);
-//
-//        return new ResponseEntity<> ("회원가입 완료", HttpStatus.OK);
-//    }
 }

@@ -54,4 +54,11 @@ public class SubwayController {
 
         return subwayService.bookmarkSubwayStation(memberDetails.getMember(), subwayRouteDto);
     }
+
+
+    @GetMapping(value = "/bookmark/show")
+    public ResponseEntity<?> myBookmarkSubwayStation(@AuthenticationPrincipal MemberDetailsImpl memberDetails){
+
+        return subwayService.myBookmarkSubwayStation(memberDetails.getMember());
+    }
 }

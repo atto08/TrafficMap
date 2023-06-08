@@ -37,7 +37,7 @@ public class WebMvcConfig extends SecurityConfigurerAdapter<DefaultSecurityFilte
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000")
+                .allowedOrigins("http://localhost:3000","https://mobilli-us.com")
                 .allowedMethods("GET", "POST", "PUT", "DELETE")
                 .exposedHeaders("Authorization", "RefreshToken")
                 .allowCredentials(true);

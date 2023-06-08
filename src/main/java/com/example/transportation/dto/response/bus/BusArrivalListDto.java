@@ -8,7 +8,17 @@ import java.util.List;
 @Setter
 public class BusArrivalListDto {
 
+    private Long stationId;
+
     private String stationName;
+
+    private double latitude;
+
+    private double longitude;
+
+    private int localState;
+
+    private Boolean bookmarkState;
 
     private List<BusArrivalDto> busArrivalList;
 }

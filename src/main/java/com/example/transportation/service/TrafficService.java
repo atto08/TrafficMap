@@ -2,7 +2,9 @@ package com.example.transportation.service;
 
 import com.example.transportation.dto.response.CalculateDistanceDto;
 import com.example.transportation.dto.response.ResCode;
+import com.example.transportation.entity.Member;
 import com.example.transportation.entity.SubwayStation;
+import com.example.transportation.repository.SubwayRouteBookmarkRepository;
 import com.example.transportation.repository.SubwayStationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +30,8 @@ public class TrafficService {
 
     private final SubwayStationRepository subwayStationRepository;
 
+    private final SubwayRouteBookmarkRepository subwayRouteBookmarkRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final HttpHeaders headers = new HttpHeaders();
@@ -37,7 +41,7 @@ public class TrafficService {
     String apiKey;
 
     @Transactional
-    public ResponseEntity<?> calculateTravelTime(String departurePoint, String destinationPoint, String departureLine, String destinationLine) {
+    public ResponseEntity<?> calculateTravelTime(Member member, String departurePoint, String destinationPoint, String departureLine, String destinationLine) {
 
         CalculateDistanceDto arrivalInfo = new CalculateDistanceDto();
 
@@ -67,9 +71,13 @@ public class TrafficService {
             // 경로 및 이동 수단에 따른 예상 소요 시간 출력
             arrivalInfo.setDeparture(departurePoint);
             arrivalInfo.setDestination(destinationPoint);
+            arrivalInfo.setDepartureLine(departureLine);
+            arrivalInfo.setDestinationLine(destinationLine);
             arrivalInfo.setDepartureTime(departureTime);
             arrivalInfo.setArrivalTime(arrivalTime);
             arrivalInfo.setDurationTime(duration);
+
+            setBookmarkState(member,arrivalInfo,departurePoint,destinationPoint,departureLine,destinationLine);
 
             // polyline 추출
             JsonNode polylineList = routeInfo.get("steps");
@@ -93,6 +101,22 @@ public class TrafficService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         return new ResponseEntity<>(arrivalInfo, headers, ResCode.DATA_LOAD_SUCCESS.getStatus());
+    }
+
+
+    public void setBookmarkState(Member member, CalculateDistanceDto arrivalInfo, String departurePoint, String destinationPoint, String departureLine, String destinationLine){
+
+        if (member==null){
+            arrivalInfo.setBookmarkState(false);
+        } else {
+            if (!subwayRouteBookmarkRepository.existsByMemberAndDepartureAndDestinationAndDepartureLineAndDestinationLine(
+                    member,departurePoint,destinationPoint,departureLine,destinationLine
+            )){
+                arrivalInfo.setBookmarkState(false);
+            } else {
+                arrivalInfo.setBookmarkState(true);
+            }
+        }
     }
 
 }

@@ -6,17 +6,20 @@ import org.jetbrains.annotations.NotNull;
 
 @Getter
 @AllArgsConstructor
-public class SubwayRouteDto {
+public class BusStopDto {
 
     @NotNull
-    private String departure;
+    private Long stationId;
 
     @NotNull
-    private String destination;
+    private String stationName;
 
     @NotNull
-    private String departureLine;
+    private double latitude;
 
     @NotNull
-    private String destinationLine;
+    private double longitude;
+
+    @NotNull
+    private int localState;
 }

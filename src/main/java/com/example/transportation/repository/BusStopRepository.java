@@ -8,4 +8,6 @@ import java.util.List;
 public interface BusStopRepository extends JpaRepository<BusStop, Long> {
 
     List<BusStop> findAllByStationNameContains(String stationName);
+
+    BusStop findBusStopByStationId(Long stationId);
 }

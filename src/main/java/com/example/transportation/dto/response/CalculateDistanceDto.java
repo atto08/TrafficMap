@@ -15,11 +15,17 @@ public class CalculateDistanceDto {
 
     private String destination;
 
+    private String departureLine;
+
+    private String destinationLine;
+
     private String departureTime;
 
     private String arrivalTime;
 
     private String durationTime;
+
+    private Boolean bookmarkState;
 
     private List<String> polylineList;
 }

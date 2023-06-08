@@ -11,7 +11,7 @@ import javax.persistence.*;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubwayRouteBookmark {
+public class BusStopBookmark {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,22 +23,26 @@ public class SubwayRouteBookmark {
     private Member member;
 
     @Column(nullable = false)
-    private String departure;
+    private Long stationId;
 
     @Column(nullable = false)
-    private String destination;
+    private String stationName;
 
     @Column(nullable = false)
-    private String departureLine;
+    private double latitude;
 
     @Column(nullable = false)
-    private String destinationLine;
+    private double longitude;
 
-    public SubwayRouteBookmark(Member member, String departure, String destination, String departureLine, String destinationLine){
+    @Column(nullable = false)
+    private int localState;
+
+    public BusStopBookmark(Member member, Long stationId, String stationName, double latitude, double longitude, int localState){
         this.member = member;
-        this.departure = departure;
-        this.destination = destination;
-        this.departureLine = departureLine;
-        this.destinationLine =destinationLine;
+        this.stationId = stationId;
+        this.stationName = stationName;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.localState = localState;
     }
 }
