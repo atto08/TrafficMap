@@ -262,9 +262,6 @@ public class BusService {
             JsonNode rootNode = objectMapper.readTree(url);
             JsonNode stationList = rootNode.path("msgBody").path("itemList");
 
-            // 서울 정류소 찾기 및 추가
-            addStationList(busStationInfoList, stationList, "stNm", "arsId", "tmY", "tmX");
-
             // 경기도 정류소 찾기 및 추가
             List<BusStop> busStationList2 = busStopRepository.findAllByStationNameContains(station);
 
@@ -286,6 +283,9 @@ public class BusService {
                 // BusStationListDto 에 정보 담기
                 busStationInfoList.add(busStationListDto);
             }
+            // 서울 정류소 찾기 및 추가
+            addStationList(busStationInfoList, stationList, "stNm", "arsId", "tmY", "tmX");
+
             // SearchBusStationListDto 에 정보 담기
             busStationList.setBusStationList(busStationInfoList);
 
