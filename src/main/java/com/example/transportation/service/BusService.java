@@ -428,7 +428,8 @@ public class BusService {
             busStopBookmarkRepository.delete(existingBookmark.get());
             return ResponseEntity.ok("북마크 해제 ☆");
         } else {
-            BusStopBookmark busStop = new BusStopBookmark(member, busStopDto.getStationId(), busStopDto.getStationName(), busStopDto.getLatitude(), busStopDto.getLongitude(), busStopDto.getLocalState());
+            BusStopBookmark busStop = new BusStopBookmark(member, busStopDto.getStationId(), busStopDto.getStationName()
+                    , busStopDto.getLatitude(), busStopDto.getLongitude(), busStopDto.getLocalState());
             busStopBookmarkRepository.save(busStop);
             return ResponseEntity.ok("북마크 추가 ★");
         }

@@ -26,10 +26,4 @@ public class TrafficController {
             return trafficService.calculateTravelTime(memberDetails.getMember(), departurePoint, destinationPoint, departureLine, destinationLine);
         }
     }
-
-//    @GetMapping(value = "/busRouteInfo/parse")
-//    public ResponseEntity<?> parseBusRouteInfo() {
-//
-//        return trafficService.parseBusRouteInfo();
-//    }
 }

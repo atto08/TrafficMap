@@ -26,18 +26,6 @@ public class BusController {
             return busService.getBusArrival(memberDetails.getMember(), stationId, localState);
     }
 
-//    @GetMapping(value = "/arrival/seoul")
-//    public ResponseEntity<?> getBusArrivalInfo(@RequestParam Long stationNum) {
-//
-//        return busService.getBusArrivalSeoul(stationNum);
-//    }
-//
-//    @GetMapping("/arrival/gyeonggi")
-//    public ResponseEntity<?> getBusArrivalGyeonggi(@RequestParam Long stationId) {
-//
-//        return busService.getBusArrivalGyeonggi(stationId);
-//    }
-
 
     @GetMapping(value = "/search/busStation")
     public ResponseEntity<?> searchBusStation(@RequestParam String station) {

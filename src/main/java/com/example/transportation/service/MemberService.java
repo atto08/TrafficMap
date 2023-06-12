@@ -31,7 +31,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MemberService {
 
-    private final String googleLoginUrl = "https://accounts.google.com";
     private final String GOOGLE_TOKEN_REQUEST_URL = "https://oauth2.googleapis.com/token";
     private final String GOOGLE_USERINFO_REQUEST_URL = "https://www.googleapis.com/oauth2/v1/userinfo";
     private final PasswordEncoder passwordEncoder;
@@ -48,12 +47,6 @@ public class MemberService {
     private String googleClientSecret;
 
 
-
-    public String getGoogleCode() {
-        String requestUrl = googleLoginUrl + "/o/oauth2/v2/auth?client_id=" + googleClientId + "&redirect_uri=" + redirectUri
-                + "&response_type=code&scope=email%20profile%20openid&access_type=offline";
-        return requestUrl;
-    }
 
     //구글 로그인
     public ResponseEntity<?> googleLogin(String code) throws JsonProcessingException {
@@ -146,6 +139,7 @@ public class MemberService {
         return new GoogleMemberInfoDto(id, email ,name, profileImgUrl);
     }
 
+
     private Member registerGoogleUserIfNeeded(GoogleMemberInfoDto googleMemberInfoDto) {
         // DB 에 중복된 Google Id 가 있는지 확인
         String email = googleMemberInfoDto.getEmail();
@@ -169,6 +163,7 @@ public class MemberService {
         }
         return googleUser;
     }
+
 
     private void forceLogin(Member googleMember) {
         MemberDetailsImpl memberDetails = new MemberDetailsImpl(googleMember);

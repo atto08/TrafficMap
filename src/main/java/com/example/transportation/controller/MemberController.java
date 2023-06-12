@@ -1,13 +1,10 @@
 package com.example.transportation.controller;
 
-import com.example.transportation.dto.response.ResCode;
 import com.example.transportation.security.MemberDetailsImpl;
 import com.example.transportation.service.MemberService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,22 +13,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
 public class MemberController {
 
     private final MemberService memberService;
-
-    private final HttpHeaders headers = new HttpHeaders();
-
-//    @GetMapping(value = "/google/code")
-//    public void getGoogleCode(HttpServletResponse response) throws Exception {
-//        response.sendRedirect(memberService.getGoogleCode());
-//    }
-
 
     @GetMapping(value = "/auth/google/callback")
     public ResponseEntity<?> getGoogleCallback(@RequestParam String code) throws IOException {
